@@ -1,0 +1,130 @@
+#!/usr/bin/perl -w
+use strict;
+use HTTP::Cookies;
+use Getopt::Long;
+use File::Spec;
+
+# default values
+our %CONF = ( config => "$ENV{HOME}/.mergecookiesrc", verbose => 0 );
+our %files;
+our $VERSION = '0.02';
+
+# command-line options
+GetOptions( \%CONF, "verbose=+", "config=s" );
+
+# read the config file
+@ARGV = ( $CONF{config} );
+while (<>) {
+    next if /^\s*(?:#|$)/;    # ignore comments and white lines
+    chomp;
+    my ( $module, $file ) = split ( /\s+/, $_, 2 );
+    $module = $module eq 'LWP' ? 'HTTP::Cookies' : "HTTP::Cookies::$module";
+    $file = File::Spec->catfile( $ENV{HOME}, $file )
+      unless File::Spec->file_name_is_absolute($file);    # portable
+
+    # load the appropriate module
+    eval "require $module;";
+    warn "Unable to load $module, skipping $file\n" and next if $@;
+    warn "$file does not exist, skipping\n" and next unless -e $file;
+    $files{$file} = $module->new( file => $file, ignore_discard => 1 );
+}
+
+# merge all cookies in a single cookie jar
+my $cookie_jar = HTTP::Cookies->new( ignore_discard => 1 );
+for my $cj ( values %files ) {
+    $cj->scan(
+        sub {
+            my ( $version,   $key,    $val,     $path,    $domain, $port,
+                 $path_spec, $secure, $expires, $discard, $rest ) = @_;
+
+            # check if we already have a cookie with the same name
+            my $array = $cookie_jar->{COOKIES}{$domain}{$path}{$key};
+
+            # keep the cookie that expires last
+            my $maxage = defined $expires ? $expires - time : undef;
+            print STDERR "Saving $domain $path $key" if $CONF{verbose};
+            $cookie_jar->set_cookie(
+                 $version,   $key,    $val,    $path,  $domain,  $port,
+                 $path_spec, $secure, $maxage, $discard, $rest )
+              unless defined $array
+                 and defined $expires
+                 and $array->[5] > $expires;
+        }
+    );
+}
+
+# save the whole list of cookies back in each file
+for my $file ( keys %files ) {
+    my $class = ref $files{$file};
+    no strict 'refs';
+    &{"${class}::save"}( $cookie_jar, $file );
+}
+
+__END__
+
+=head1 NAME
+
+mergecookies - Merge all your cookies for all of your browsers
+
+=head1 SYNOPSIS
+
+B<mergecookies> S<[ B<--config> I<file> ]> S<[ B<--verbose> ]>
+
+=head1 DESCRIPTION
+
+B<mergecookies> reads all your cookie files for which a HTTP::Cookies
+module exists and is installed, merges all the cookies (if two identical
+cookies (same name, same domain) are found, the one that expires the
+later is kept) and saves them back in each cookie file.
+
+This way you can share your cookies between all your browsers.
+
+The configuration file looks like the following:
+
+    # filenames are relative to $ENV{HOME} or absolute
+    Netscape     .netscape/cookies
+    Mozilla      .mozilla/book/kdtqv86o.slt/cookies.txt
+    Mozilla      .phoenix/default/bt7ivopl.slt/cookies.txt
+
+    # file in the HTTP::Cookies format
+    LWP          /tmp/lwp-cookies.txt
+
+    # there is no HTTP::Cookies::Opera for now :-(
+    #Opera        /home/book/.opera/cookies4.dat
+
+Each line holds the name of the HTTP::Cookies module (Mozilla for
+HTTP::Cookies::Mozilla and so on) used to read the cookie file and the
+path of the file (absolute or relative to $ENV{HOME}). Cookies saved
+with HTTP::Cookies require the C<LWP> keyword.
+
+=head1 COMMAND-LINE OPTIONS
+
+B<mergecookies> accepts the following command-line options:
+
+=over 4
+
+=item B<--config> I<file>
+
+Read an alternate configuration file.
+
+=item B<--verbose>
+
+Print the list of cookies handled by the script.
+
+=back
+
+=head1 AUTHOR
+
+Philippe "BooK" Bruhat E<lt>book@cpan.orgE<gt>
+
+This script was created as an example of use for the HTTP::Cookies
+modules. Version 0.01 appeared in GNU/Linux Magazine France 57 (in
+French).
+
+=head1 COPYRIGHT
+
+This module is free software; you can redistribute it or modify it under
+the same terms as Perl itself.
+
+=cut
+

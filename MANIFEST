@@ -1,0 +1,5 @@
+MANIFEST			This list of files
+Makefile.PL
+mergecookies
+t/01pod.t
+t/02compile.t
