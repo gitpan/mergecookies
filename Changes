@@ -1,0 +1,10 @@
+Revision history for Perl script mergecookies
+
+0.03  Tue Dec  2 00:49:34 CET 2003
+        - 'make install' now works
+
+0.02  Tue Dec  2 00:37:21 CET 2003
+        - documentation and tests
+
+0.01  Thu Nov  6 08:34:03 CET 2003
+        - original version, only published in GNU/Linux Magazine France 57

@@ -1,0 +1,9 @@
+mergecookies - Merge all your cookies for all of your browsers
+
+mergecookies reads all your cookie files for which a HTTP::Cookies
+module exists and is installed, merges all the cookies (if two identical
+cookies (same name, same domain) are found, the one that expires the
+later is kept) and saves them back in each cookie file.
+
+This way you can share your cookies between all your browsers.
+

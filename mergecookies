@@ -7,7 +7,7 @@ use File::Spec;
 # default values
 our %CONF = ( config => "$ENV{HOME}/.mergecookiesrc", verbose => 0 );
 our %files;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 # command-line options
 GetOptions( \%CONF, "verbose=+", "config=s" );
